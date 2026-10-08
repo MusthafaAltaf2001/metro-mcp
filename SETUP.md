@@ -1,6 +1,6 @@
 # Metro MCP — deploy on Vercel & share
 
-Goal: a public HTTPS URL (`https://metro-app.musthafaaltaf.com/mcp`) that anyone
+Goal: a public HTTPS URL (`https://lmt-mcp.musthafaaltaf.com/mcp`) that anyone
 adds via Claude's **Add custom connector** button. No Anthropic approval needed.
 
 ## Files
@@ -22,17 +22,19 @@ adds via Claude's **Add custom connector** button. No Anthropic approval needed.
    function. No build settings to change.
 
 3. **Add your domain:** Project → **Settings → Domains** → add
-   `metro-app.musthafaaltaf.com`. Vercel shows a DNS record to create.
+   `lmt-mcp.musthafaaltaf.com`. Vercel shows a DNS record to create.
 
-4. **At your registrar** (musthafaaltaf.com), add the record Vercel gives you —
-   usually:
-       CNAME   metro-app   →   cname.vercel-dns.com
-   Vercel auto-issues the TLS cert once DNS resolves (a few minutes).
+4. **In your DNS provider** — for musthafaaltaf.com that's **Cloudflare** (the domain
+   is registered at GoDaddy but DNS is managed by Cloudflare). Add the record Vercel
+   gives you, usually:
+       CNAME   lmt-mcp   →   cname.vercel-dns.com
+   Set the Cloudflare proxy to **DNS only (grey cloud)**, not Proxied, or Vercel can't
+   issue the cert. Vercel auto-issues TLS once DNS resolves (a few minutes).
 
-5. **Done.** Your MCP URL is `https://metro-app.musthafaaltaf.com/mcp`.
+5. **Done.** Your MCP URL is `https://lmt-mcp.musthafaaltaf.com/mcp`.
 
 ## Verify (from your laptop)
-    curl -s -X POST https://metro-app.musthafaaltaf.com/mcp \
+    curl -s -X POST https://lmt-mcp.musthafaaltaf.com/mcp \
       -H "Content-Type: application/json" \
       -H "Accept: application/json, text/event-stream" \
       -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
@@ -41,15 +43,15 @@ Expect a JSON result with `"serverInfo":{"name":"metro"...}`.
 ## How users install it (send them this)
 1. claude.ai → **Settings → Connectors**
 2. **Add custom connector**
-3. Paste:  `https://metro-app.musthafaaltaf.com/mcp`
+3. Paste:  `https://lmt-mcp.musthafaaltaf.com/mcp`
 4. Save. The `plan_journey` and `search_stops` tools appear.
 
 Requires a paid Claude plan (Pro/Max/Team/Enterprise); Free tier has no
 custom-connector button.
 
 ## Notes
-- The metro JWT in `metro.py` expires **2027-03-27** — every user breaks at once
-  when it lapses. Re-grab it from the site and redeploy (or set `METRO_JWT` as a
-  Vercel env var instead of hardcoding).
+- The metro JWT is read from the `METRO_JWT` env var (set in Vercel → Settings →
+  Environment Variables; not in the code). It expires **2027-03-27** — every user
+  breaks at once when it lapses. Re-grab it from the site, update the env var, redeploy.
 - Free Vercel functions have a short execution limit; these calls return in ~1s,
   well under it.
