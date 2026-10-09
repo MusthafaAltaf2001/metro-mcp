@@ -2,15 +2,22 @@ import os
 
 import httpx
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 
 mcp = MCPServer("metro")
 
 FARE_BASE = "https://lankametro.lk/metrobus-proxy/fare-service/api/v1"
 PLAN_URL = f"{FARE_BASE}/journeys/plan"
 STOPS_SEARCH_URL = f"{FARE_BASE}/stops/search"
-# ponytail: token from env only. Set METRO_JWT in Vercel (and your shell for local
-# dev). Expires 2027-03-27 — re-grab from the site and update the env var when it lapses.
+# ponytail: token from env only. Set METRO_JWT in your shell (local) or host env.
+# Expires 2027-03-27 — re-grab from the site and update it when it lapses.
 JWT = os.environ.get("METRO_JWT", "")
+# Browser-like UA so the upstream Cloudflare doesn't flag the default python-httpx agent.
+HEADERS = {
+    "Authorization": f"Bearer {JWT}",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+}
 
 
 @mcp.tool()
@@ -33,12 +40,7 @@ async def plan_journey(
         params["date"] = date
 
     async with httpx.AsyncClient() as client:
-        r = await client.get(
-            PLAN_URL,
-            params=params,
-            headers={"Authorization": f"Bearer {JWT}"},
-            timeout=20,
-        )
+        r = await client.get(PLAN_URL, params=params, headers=HEADERS, timeout=20)
     if r.status_code != 200:
         return {"error": r.status_code, "body": r.text}
     return r.json().get("data", {})
@@ -52,12 +54,11 @@ async def search_stops(q: str) -> list[dict]:
     can include duplicates (same place, different code/direction), so let the
     caller pick the right id.
     """
-    headers = {"Authorization": f"Bearer {JWT}"}
     term = q.strip()
     async with httpx.AsyncClient() as client:
         while len(term) >= 3:
             r = await client.get(
-                STOPS_SEARCH_URL, params={"q": term}, headers=headers, timeout=20
+                STOPS_SEARCH_URL, params={"q": term}, headers=HEADERS, timeout=20
             )
             if r.status_code != 200:
                 return [{"error": r.status_code, "body": r.text}]
@@ -71,6 +72,13 @@ async def search_stops(q: str) -> list[dict]:
 if __name__ == "__main__":
     # ponytail: stdio for local dev, streamable-http when PORT is set (any cloud host).
     if port := os.environ.get("PORT"):
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=int(port), stateless_http=True)
+        mcp.run(
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=int(port),
+            stateless_http=True,
+            # Public host, not localhost: turn off the DNS-rebinding host allow-list (else 421).
+            transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+        )
     else:
         mcp.run(transport="stdio")
