@@ -1,11 +1,10 @@
 [project]
-name = "pokemon"
+name = "metro-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "MCP server for Lanka Metro bus journey planning and stop search"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "fastmcp>=4.0.10",
     "httpx>=0.28.1",
     "mcp[cli]>=1.6.0",
 ]
